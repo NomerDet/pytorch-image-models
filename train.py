@@ -424,7 +424,7 @@ def main():
         args.model,
         pretrained=args.pretrained,
         in_chans=in_chans,
-        num_classes=args.num_classes,
+        num_classes=4,
         drop_rate=args.drop,
         drop_path_rate=args.drop_path,
         drop_block_rate=args.drop_block,
@@ -442,9 +442,11 @@ def main():
     if args.head_init_bias is not None:
         nn.init.constant_(model.get_classifier().bias, args.head_init_bias)
 
+    print(args.num_classes)
+    args.num_classes = 4
     if args.num_classes is None:
         assert hasattr(model, 'num_classes'), 'Model must have `num_classes` attr if not set on cmd line/config.'
-        args.num_classes = model.num_classes  # FIXME handle model default vs config num_classes more elegantly
+        args.num_classes = 4  # FIXME handle model default vs config num_classes more elegantly
 
     if args.grad_checkpointing:
         model.set_grad_checkpointing(enable=True)
@@ -649,8 +651,8 @@ def main():
         num_aug_repeats=args.aug_repeats,
         num_aug_splits=num_aug_splits,
         interpolation=train_interpolation,
-        mean=data_config['mean'],
-        std=data_config['std'],
+        mean=(0,0,0),#data_config['mean'],
+        std=(1,1,1),#data_config['std'],
         num_workers=args.workers,
         distributed=args.distributed,
         collate_fn=collate_fn,
@@ -671,8 +673,8 @@ def main():
         is_training=False,
         use_prefetcher=args.prefetcher,
         interpolation=data_config['interpolation'],
-        mean=data_config['mean'],
-        std=data_config['std'],
+        mean=(0,0,0),#data_config['mean'],
+        std=(1,1,1),#data_config['std'],
         num_workers=eval_workers,
         distributed=args.distributed,
         crop_pct=data_config['crop_pct'],
@@ -697,6 +699,7 @@ def main():
             train_loss_fn = LabelSmoothingCrossEntropy(smoothing=args.smoothing)
     else:
         train_loss_fn = nn.CrossEntropyLoss()
+    print(train_loss_fn)
     train_loss_fn = train_loss_fn.to(device=device)
     validate_loss_fn = nn.CrossEntropyLoss().to(device=device)
 
@@ -900,6 +903,13 @@ def train_one_epoch(
         def _forward():
             with amp_autocast():
                 output = model(input)
+#                 print(model)
+#                 print(output)
+#                 import numpy as np
+#                 for o in output:
+#                     print(torch.nn.functional.softmax(o, dim=0).tolist())
+#                 print(target)
+#                 exit(0)
                 loss = loss_fn(output, target)
             if accum_steps > 1:
                 loss /= accum_steps
@@ -1038,7 +1048,7 @@ def validate(
                     target = target[0:target.size(0):reduce_factor]
 
                 loss = loss_fn(output, target)
-            acc1, acc5 = utils.accuracy(output, target, topk=(1, 5))
+            acc1, acc5 = utils.accuracy(output, target, topk=(1, 2))
 
             if args.distributed:
                 reduced_loss = utils.reduce_tensor(loss.data, args.world_size)
