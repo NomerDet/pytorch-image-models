@@ -44,6 +44,9 @@ def onnx_export(
         if not input_size:
             assert hasattr(model, 'default_cfg')
             input_size = model.default_cfg.get('input_size')
+        print(batch_size)
+        print(input_size)
+        input_size = (3,224,224)
         example_input = torch.randn((batch_size,) + input_size, requires_grad=training)
 
     # Run model once before export trace, sets padding for models with Conv2dSameExport. This means
