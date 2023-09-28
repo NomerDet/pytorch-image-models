@@ -9,6 +9,7 @@ Copyright 2020 Ross Wightman
 import argparse
 import numpy as np
 import onnxruntime
+import torch
 from timm.data import create_loader, resolve_data_config, create_dataset
 from timm.utils import AverageMeter
 import time
@@ -61,8 +62,8 @@ def main():
         batch_size=args.batch_size,
         use_prefetcher=False,
         interpolation=data_config['interpolation'],
-        mean=data_config['mean'],
-        std=data_config['std'],
+        mean=(0,0,0), #data_config['mean'],
+        std=(1,1,1), #data_config['std'],
         num_workers=args.workers,
         crop_pct=data_config['crop_pct']
     )
@@ -76,6 +77,15 @@ def main():
     for i, (input, target) in enumerate(loader):
         # run the net and return prediction
         output = session.run([], {input_name: input.data.numpy()})
+        res = []
+        #print(output[0])
+        for o in output[0]:
+            #print(o)
+            #temp =torch.nn.functional.softmax(o, dim=0).tolist()
+            o = o.tolist()
+            res.append(o.index(max(o)))
+        print(res)
+        print(target)
         output = output[0]
 
         # measure accuracy and record loss
@@ -101,7 +111,7 @@ def main():
 
 def accuracy_np(output, target):
     max_indices = np.argsort(output, axis=1)[:, ::-1]
-    top5 = 100 * np.equal(max_indices[:, :5], target[:, np.newaxis]).sum(axis=1).mean()
+    top5 = 100 * np.equal(max_indices[:, :2], target[:, np.newaxis]).sum(axis=1).mean()
     top1 = 100 * np.equal(max_indices[:, 0], target).mean()
     return top1, top5
 
